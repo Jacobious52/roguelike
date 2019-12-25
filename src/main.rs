@@ -6,13 +6,16 @@ use specs::prelude::*;
 extern crate specs_derive;
 
 mod components;
-pub use components::*;
+use components::*;
+
+mod visibility_system;
+use visibility_system::VisibilitySystem;
 
 mod player;
-pub use player::*;
+use player::*;
 
 mod map;
-pub use map::*;
+use map::*;
 
 mod rect;
 
@@ -22,6 +25,8 @@ pub struct State {
 
 impl State {
     fn run_systems(&mut self) {
+        let mut vis = VisibilitySystem {};
+        vis.run_now(&self.ecs);
         self.ecs.maintain();
     }
 }
@@ -70,6 +75,11 @@ fn main() {
             bg: RGB::named(rltk::BLACK),
         })
         .with(Player {})
+        .with(Viewshed {
+            visible_tiles: Vec::new(),
+            range: 8,
+            dirty: true,
+        })
         .build();
 
     rltk::main_loop(context, gs);
