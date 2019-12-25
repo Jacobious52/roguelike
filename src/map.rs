@@ -1,9 +1,8 @@
 use rltk::{Algorithm2D, BaseMap, Console, Point, RandomNumberGenerator, Rltk, RGB};
-use specs::{Join, World, WorldExt};
+use specs::World;
 use std::cmp::{max, min};
 
 use super::rect::Rect;
-use super::{Player, Viewshed};
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
