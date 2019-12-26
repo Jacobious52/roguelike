@@ -4,9 +4,9 @@ use std::cmp::{max, min};
 
 use super::rect::Rect;
 
-const MAP_WIDTH: usize = 80;
-const MAP_HEIGHT: usize = 43;
-const MAP_COUNT: usize = MAP_HEIGHT * MAP_WIDTH;
+pub const MAP_WIDTH: usize = 80;
+pub const MAP_HEIGHT: usize = 43;
+pub const MAP_COUNT: usize = MAP_HEIGHT * MAP_WIDTH;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
