@@ -6,30 +6,25 @@ use specs::prelude::*;
 extern crate specs_derive;
 
 mod components;
-use components::*;
-
-mod visibility_system;
-use visibility_system::VisibilitySystem;
-
-mod monster_ai_system;
-use monster_ai_system::MonsterAI;
-
-mod map_indexing_system;
-use map_indexing_system::MapIndexingSystem;
-
-mod melee_combat_system;
-use melee_combat_system::MeleeCombatSystem;
-
 mod damage_system;
-use damage_system::DamageSystem;
-
-mod player;
-use player::*;
-
+mod game_log;
+mod gui;
 mod map;
-use map::*;
-
+mod map_indexing_system;
+mod melee_combat_system;
+mod monster_ai_system;
+mod player;
 mod rect;
+mod visibility_system;
+
+use components::*;
+use damage_system::DamageSystem;
+use map::*;
+use map_indexing_system::MapIndexingSystem;
+use melee_combat_system::MeleeCombatSystem;
+use monster_ai_system::MonsterAI;
+use player::*;
+use visibility_system::VisibilitySystem;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
@@ -111,18 +106,13 @@ impl GameState for State {
             }
         }
 
-        ctx.print_color(
-            0,
-            0,
-            RGB::named(rltk::WHITE),
-            RGB::named(rltk::BLACK),
-            format!("FPS: {}", ctx.fps).as_str(),
-        );
+        gui::draw_ui(&self.ecs, ctx);
     }
 }
 
 fn main() {
-    let context = Rltk::init_simple8x8(80, 50, "Hello Rust World", "resources");
+    let mut context = Rltk::init_simple8x8(80, 50, "Hello Rust World", "resources");
+    context.with_post_scanlines(true);
     let mut gs = State { ecs: World::new() };
 
     gs.ecs.register::<Position>();
@@ -207,6 +197,9 @@ fn main() {
     gs.ecs.insert(player_entity);
     gs.ecs.insert(RunState::PreRun);
     gs.ecs.insert(Point::new(player_x, player_y));
+    gs.ecs.insert(game_log::GameLog {
+        entries: vec!["Welcome to my game".to_string()],
+    });
 
     rltk::main_loop(context, gs);
 }

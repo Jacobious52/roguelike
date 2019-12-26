@@ -1,5 +1,5 @@
 use super::{CombatStats, Map, Player, Position, RunState, State, Viewshed, WantsToMelee};
-use rltk::{console, Point, Rltk, VirtualKeyCode};
+use rltk::{Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use std::cmp::{max, min};
 
@@ -28,7 +28,6 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
                         },
                     )
                     .expect("Add target failed");
-                console::log(&format!("From Hell's Heart, I stab thee!"));
                 return;
             }
         }
