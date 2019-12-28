@@ -1,7 +1,4 @@
-use super::{
-    game_log::GameLog, CombatStats, InBackpack, Name, Position, Potion, WantsToDrinkPotion,
-    WantsToDropItem, WantsToPickupItem,
-};
+use super::{components::*, game_log::GameLog, map::Map};
 use specs::prelude::*;
 
 pub struct ItemCollectionSystem {}
@@ -44,53 +41,181 @@ impl<'a> System<'a> for ItemCollectionSystem {
     }
 }
 
-pub struct PotionUseSystem {}
+pub struct ItemUseSystem {}
 
-impl<'a> System<'a> for PotionUseSystem {
+impl<'a> System<'a> for ItemUseSystem {
     #[allow(clippy::type_complexity)]
     type SystemData = (
+        ReadExpect<'a, Map>,
         ReadExpect<'a, Entity>,
         WriteExpect<'a, GameLog>,
         Entities<'a>,
-        WriteStorage<'a, WantsToDrinkPotion>,
+        WriteStorage<'a, WantsToUseItem>,
         ReadStorage<'a, Name>,
-        ReadStorage<'a, Potion>,
+        ReadStorage<'a, Consumable>,
+        ReadStorage<'a, ProvidesHealing>,
+        ReadStorage<'a, InflictsDamage>,
+        ReadStorage<'a, AreaOfEffect>,
+        WriteStorage<'a, Confusion>,
+        WriteStorage<'a, SufferDamage>,
         WriteStorage<'a, CombatStats>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
         let (
+            map,
             player_entity,
             mut game_log,
             entities,
-            mut wants_drink,
+            mut wants_use,
             names,
-            potions,
+            consumables,
+            healing,
+            does_damage,
+            aoe,
+            mut confused,
+            mut suffer_damage,
             mut combat_stats,
         ) = data;
 
-        for (entity, drink, stats) in (&entities, &wants_drink, &mut combat_stats).join() {
-            let potion = potions.get(drink.potion);
-            match potion {
-                None => {}
-                Some(potion) => {
-                    stats.hp = i32::min(stats.max_hp, stats.hp + potion.heal_amount);
-                    if entity == *player_entity {
-                        game_log.entries.insert(
-                            0,
-                            format!(
-                                "You drink the {}, healing {} hp.",
-                                names.get(drink.potion).unwrap().name,
-                                potion.heal_amount
-                            ),
-                        );
+        for (entity, use_item) in (&entities, &wants_use).join() {
+            let mut used_item = true;
+
+            // Targeting
+            let mut targets: Vec<Entity> = Vec::new();
+            match use_item.target {
+                None => {
+                    targets.push(*player_entity);
+                }
+                Some(target) => {
+                    let area_effect = aoe.get(use_item.item);
+                    match area_effect {
+                        None => {
+                            // Single target in tile
+                            let idx = map.xy_idx(target.x, target.y);
+                            for mob in map.tile_content[idx].iter() {
+                                targets.push(*mob);
+                            }
+                        }
+                        Some(area_effect) => {
+                            // AoE
+                            let mut blast_tiles =
+                                rltk::field_of_view(target, area_effect.radius, &*map);
+                            blast_tiles.retain(|p| {
+                                p.x > 0 && p.x < map.width - 1 && p.y > 0 && p.y < map.height - 1
+                            });
+                            for tile_idx in blast_tiles.iter() {
+                                let idx = map.xy_idx(tile_idx.x, tile_idx.y);
+                                for mob in map.tile_content[idx].iter() {
+                                    targets.push(*mob);
+                                }
+                            }
+                        }
                     }
-                    entities.delete(drink.potion).expect("Delete failed");
+                }
+            }
+
+            let item_heals = healing.get(use_item.item);
+            match item_heals {
+                None => {}
+                Some(healer) => {
+                    for target in targets.iter() {
+                        let stats = combat_stats.get_mut(*target);
+                        if let Some(stats) = stats {
+                            stats.hp = i32::max(stats.max_hp, stats.hp + healer.heal_amount);
+                            if entity == *player_entity {
+                                game_log.entries.insert(
+                                    0,
+                                    format!(
+                                        "You use the {}, healing {} hp.",
+                                        names.get(use_item.item).unwrap().name,
+                                        healer.heal_amount
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If it inflicts damage, apply it to the target cell
+            let item_damages = does_damage.get(use_item.item);
+            match item_damages {
+                None => {}
+                Some(damage) => {
+                    used_item = false;
+                    for mob in targets.iter() {
+                        suffer_damage
+                            .insert(
+                                *mob,
+                                SufferDamage {
+                                    amount: damage.damage,
+                                },
+                            )
+                            .expect("Unable to insert");
+                        if entity == *player_entity {
+                            let mob_name = names.get(*mob).unwrap();
+                            let item_name = names.get(use_item.item).unwrap();
+                            game_log.entries.insert(
+                                0,
+                                format!(
+                                    "You use {} on {}, inflicting {} hp.",
+                                    item_name.name, mob_name.name, damage.damage
+                                ),
+                            );
+                        }
+
+                        used_item = true;
+                    }
+                }
+            }
+
+            // Can it pass along confusion? Note the use of scopes to escape from the borrow checker!
+            let mut add_confusion = Vec::new();
+            {
+                let causes_confusion = confused.get(use_item.item);
+                match causes_confusion {
+                    None => {}
+                    Some(confusion) => {
+                        used_item = false;
+                        for mob in targets.iter() {
+                            add_confusion.push((*mob, confusion.turns));
+                            if entity == *player_entity {
+                                let mob_name = names.get(*mob).unwrap();
+                                let item_name = names.get(use_item.item).unwrap();
+                                game_log.entries.insert(
+                                    0,
+                                    format!(
+                                        "You use {} on {}, confusing them.",
+                                        item_name.name, mob_name.name
+                                    ),
+                                );
+                            }
+                            used_item = true;
+                        }
+                    }
+                }
+            }
+            for mob in add_confusion.iter() {
+                confused
+                    .insert(mob.0, Confusion { turns: mob.1 })
+                    .expect("Unable to insert status");
+            }
+
+            if used_item {
+                let consumable = consumables.get(use_item.item);
+                match consumable {
+                    None => {}
+                    Some(_) => {
+                        entities
+                            .delete(use_item.item)
+                            .expect("failed to delete item");
+                    }
                 }
             }
         }
 
-        wants_drink.clear();
+        wants_use.clear();
     }
 }
 
