@@ -10,6 +10,7 @@ pub struct SerializeMe;
 #[derive(Component, Serialize, Deserialize, Clone)]
 pub struct SerializationHelper {
     pub map: super::map::Map,
+    pub game_log: super::game_log::GameLog,
 }
 
 #[derive(Component, ConvertSaveload, Clone)]

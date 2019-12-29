@@ -28,10 +28,14 @@ pub fn save_game(_ecs: &mut World) {}
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_game(ecs: &mut World) {
     // Create helper
-    let mapcopy = ecs.get_mut::<super::map::Map>().unwrap().clone();
+    let map_copy = ecs.get_mut::<super::map::Map>().unwrap().clone();
+    let gamelog_copy = ecs.get_mut::<super::game_log::GameLog>().unwrap().clone();
     let savehelper = ecs
         .create_entity()
-        .with(SerializationHelper { map: mapcopy })
+        .with(SerializationHelper {
+            map: map_copy,
+            game_log: gamelog_copy,
+        })
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
 
@@ -147,17 +151,24 @@ pub fn load_game(ecs: &mut World) {
         );
     }
 
-    let mut deleteme: Option<Entity> = None;
+    let mut resources_only: Vec<Entity> = Vec::new();
     {
         let entities = ecs.entities();
         let helper = ecs.read_storage::<SerializationHelper>();
         let player = ecs.read_storage::<Player>();
         let position = ecs.read_storage::<Position>();
         for (e, h) in (&entities, &helper).join() {
-            let mut worldmap = ecs.write_resource::<super::map::Map>();
-            *worldmap = h.map.clone();
-            worldmap.tile_content = vec![Vec::new(); super::map::MAP_COUNT];
-            deleteme = Some(e);
+            let mut world_map = ecs.write_resource::<super::map::Map>();
+            *world_map = h.map.clone();
+            world_map.tile_content = vec![Vec::new(); super::map::MAP_COUNT];
+
+            let mut gamelog = ecs.write_resource::<super::game_log::GameLog>();
+            *gamelog = h.game_log.clone();
+            gamelog
+                .entries
+                .insert(0, "Loaded game from save".to_string());
+
+            resources_only.push(e);
         }
         for (e, _p, pos) in (&entities, &player, &position).join() {
             let mut ppos = ecs.write_resource::<rltk::Point>();
@@ -166,8 +177,9 @@ pub fn load_game(ecs: &mut World) {
             *player_resource = e;
         }
     }
-    ecs.delete_entity(deleteme.unwrap())
-        .expect("Unable to delete helper");
+    for e in resources_only {
+        ecs.delete_entity(e).expect("Unable to delete helper");
+    }
 }
 
 pub fn delete_save() {
