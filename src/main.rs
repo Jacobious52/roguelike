@@ -150,7 +150,17 @@ impl GameState for State {
                 }
             }
             RunState::ShowTargeting { range, item } => {
-                let result = gui::ranged_target(self, ctx, range);
+                let blast: i32;
+                {
+                    let aeo_items = self.ecs.read_storage::<AreaOfEffect>();
+                    let aeo = aeo_items.get(item);
+                    match aeo {
+                        None => blast = 1,
+                        Some(aeo) => blast = aeo.radius,
+                    };
+                }
+
+                let result = gui::ranged_target(self, ctx, range, blast);
                 match result.0 {
                     gui::ItemMenuResult::Cancel => new_run_state = RunState::AwaitingInput,
                     gui::ItemMenuResult::NoResponse => {}

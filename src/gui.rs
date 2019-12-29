@@ -158,17 +158,19 @@ pub fn ranged_target(
     gs: &mut State,
     ctx: &mut Rltk,
     range: i32,
+    blast: i32,
 ) -> (ItemMenuResult, Option<Point>) {
     let player_entity = gs.ecs.fetch::<Entity>();
     let player_pos = gs.ecs.fetch::<Point>();
     let viewsheds = gs.ecs.read_storage::<Viewshed>();
+    let map = gs.ecs.fetch::<Map>();
 
     ctx.print_color(
         5,
         0,
         RGB::named(rltk::YELLOW),
         RGB::named(rltk::BLACK),
-        "Select Target:",
+        format!("Select Target - Aeo: {}", blast).as_str(),
     );
 
     // Highlight available target cells
@@ -193,8 +195,19 @@ pub fn ranged_target(
     for idx in available_cells.iter() {
         if idx.x == mouse_pos.0 && idx.y == mouse_pos.1 {
             valid_target = true;
+
+            // draw blast
+            if blast > 1 {
+                let mut blast_points = rltk::field_of_view(Point::new(idx.x, idx.y), blast, &*map);
+                blast_points
+                    .retain(|p| p.x > 0 && p.x < map.width - 1 && p.y > 0 && p.y < map.height - 1);
+                for point in blast_points {
+                    ctx.set_bg(point.x, point.y, RGB::named(rltk::RED));
+                }
+            }
         }
     }
+
     if valid_target {
         ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::CYAN));
         if ctx.left_click {
