@@ -3,7 +3,7 @@ use super::{
 };
 use specs::prelude::*;
 
-pub struct ItemCollectionSystem {}
+pub struct ItemCollectionSystem;
 
 impl<'a> System<'a> for ItemCollectionSystem {
     #[allow(clippy::type_complexity)]
@@ -43,7 +43,7 @@ impl<'a> System<'a> for ItemCollectionSystem {
     }
 }
 
-pub struct ItemUseSystem {}
+pub struct ItemUseSystem;
 
 impl<'a> System<'a> for ItemUseSystem {
     #[allow(clippy::type_complexity)]
@@ -352,7 +352,7 @@ impl<'a> System<'a> for ItemUseSystem {
     }
 }
 
-pub struct ItemDropSystem {}
+pub struct ItemDropSystem;
 
 impl<'a> System<'a> for ItemDropSystem {
     #[allow(clippy::type_complexity)]
@@ -407,7 +407,7 @@ impl<'a> System<'a> for ItemDropSystem {
     }
 }
 
-pub struct ItemRemoveSystem {}
+pub struct ItemRemoveSystem;
 
 impl<'a> System<'a> for ItemRemoveSystem {
     #[allow(clippy::type_complexity)]

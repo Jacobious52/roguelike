@@ -1,7 +1,7 @@
 use super::{game_log::GameLog, HungerClock, HungerState, RunState, SufferDamage};
 use specs::prelude::*;
 
-pub struct HungerSystem {}
+pub struct HungerSystem;
 
 impl<'a> System<'a> for HungerSystem {
     #[allow(clippy::type_complexity)]

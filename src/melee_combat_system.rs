@@ -4,7 +4,7 @@ use super::{
 };
 use specs::prelude::*;
 
-pub struct MeleeCombatSystem {}
+pub struct MeleeCombatSystem;
 
 impl<'a> System<'a> for MeleeCombatSystem {
     type SystemData = (

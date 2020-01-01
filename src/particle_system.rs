@@ -20,7 +20,7 @@ pub fn cull_dead_particles(ecs: &mut World, ctx: &Rltk) {
     }
 }
 
-pub struct ParticleSpawnSystem {}
+pub struct ParticleSpawnSystem;
 
 impl<'a> System<'a> for ParticleSpawnSystem {
     #[allow(clippy::type_complexity)]

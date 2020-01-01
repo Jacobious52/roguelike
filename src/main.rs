@@ -31,7 +31,7 @@ use inventory_system::{ItemCollectionSystem, ItemDropSystem, ItemRemoveSystem, I
 use map::*;
 use map_indexing_system::MapIndexingSystem;
 use melee_combat_system::MeleeCombatSystem;
-use monster_ai_system::MonsterAI;
+use monster_ai_system::MonsterAISystem;
 use particle_system::ParticleSpawnSystem;
 use player::*;
 use random_table::RandomTable;
@@ -63,40 +63,15 @@ pub enum RunState {
 
 pub struct State {
     ecs: World,
-}
-
-macro_rules! run_systems {
-    ( $s:expr; $( $x:expr ),* ) => {
-        {
-            $(
-                let mut sys = $x;
-                sys.run_now(&$s);
-            )*
-        }
-    };
+    systems: Dispatcher<'static, 'static>,
 }
 
 impl State {
     fn run_systems(&mut self) {
-        run_systems!(self.ecs;
-            VisibilitySystem{},
-            MonsterAI{},
-            MapIndexingSystem{},
-            MeleeCombatSystem{},
-            DamageSystem{},
-            ItemCollectionSystem{},
-            ItemUseSystem{},
-            ItemDropSystem{},
-            ItemRemoveSystem{},
-            ParticleSpawnSystem{},
-            HungerSystem{}
-        );
-
+        self.systems.dispatch(&self.ecs);
         self.ecs.maintain();
     }
-}
 
-impl State {
     fn entities_to_remove_on_level_change(&mut self) -> Vec<Entity> {
         let entities = self.ecs.entities();
         let player = self.ecs.read_storage::<Player>();
@@ -465,55 +440,62 @@ impl GameState for State {
     }
 }
 
+macro_rules! register_independent_systems {
+    ( $( $x:expr ),* ) => {
+        DispatcherBuilder::new()
+        $(
+            .with($x, stringify!($x), &[])
+        )*
+        .build()
+    };
+}
+
 macro_rules! register_components {
-    ( $s:expr; $( $x:path ),* ) => {
-        {
-            $(
-                $s.register::<$x>();
-            )*
-        }
+    ( $s:expr; $( $x:ty ),* ) => {
+        $(
+            $s.register::<$x>();
+        )*
     };
 }
 
 fn main() {
     let mut context = Rltk::init_simple8x8(80, 50, "Hello Rust World", "resources");
     context.with_post_scanlines(true);
-    let mut gs = State { ecs: World::new() };
 
+    let systems = register_independent_systems!(
+        VisibilitySystem,
+        MapIndexingSystem,
+        MeleeCombatSystem,
+        DamageSystem,
+        MonsterAISystem,
+        ItemCollectionSystem,
+        ItemUseSystem,
+        ItemDropSystem,
+        ItemRemoveSystem,
+        ParticleSpawnSystem,
+        HungerSystem
+    );
+
+    let mut gs = State {
+        ecs: World::new(),
+        systems,
+    };
+
+    // registry components referenced by systems
+    gs.systems.setup(&mut gs.ecs);
+
+    // register any extra components not directly referenced in systems above
     register_components!(gs.ecs;
+        // serialisation components
         SimpleMarker<SerializeMe>,
         SerializationHelper,
-        Position,
-        Renderable,
-        Player,
-        Viewshed,
-        Monster,
-        Name,
-        BlocksTile,
-        CombatStats,
-        WantsToMelee,
-        SufferDamage,
+        // used by player get_item
         Item,
-        WantsToPickupItem,
-        InBackpack,
-        WantsToUseItem,
-        WantsToDropItem,
-        Consumable,
-        ProvidesHealing,
-        Ranged,
-        InflictsDamage,
-        AreaOfEffect,
-        Confusion,
-        Equippable,
-        Equipped,
-        MeleePowerBonus,
-        DefenseBonus,
-        WantsToRemoveItem,
-        ParticleLifetime,
-        HungerClock,
-        ProvidesFood,
-        MagicMapper
+        // used in main loop
+        Ranged
     );
+
+    // resources
     gs.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
     let map: Map = Map::new_map_rooms_and_corridors(1);

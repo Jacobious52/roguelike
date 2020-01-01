@@ -5,9 +5,9 @@ use super::{
 use rltk::Point;
 use specs::prelude::*;
 
-pub struct MonsterAI {}
+pub struct MonsterAISystem;
 
-impl<'a> System<'a> for MonsterAI {
+impl<'a> System<'a> for MonsterAISystem {
     #[allow(clippy::type_complexity)]
     type SystemData = (
         WriteExpect<'a, Map>,

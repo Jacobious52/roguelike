@@ -1,7 +1,7 @@
 use super::{game_log::GameLog, CombatStats, Map, Name, Player, Position, RunState, SufferDamage};
 use specs::prelude::*;
 
-pub struct DamageSystem {}
+pub struct DamageSystem;
 
 impl<'a> System<'a> for DamageSystem {
     type SystemData = (
