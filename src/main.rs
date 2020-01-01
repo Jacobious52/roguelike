@@ -15,6 +15,7 @@ mod map;
 mod map_indexing_system;
 mod melee_combat_system;
 mod monster_ai_system;
+mod particle_system;
 mod player;
 mod random_table;
 mod rect;
@@ -29,6 +30,7 @@ use map::*;
 use map_indexing_system::MapIndexingSystem;
 use melee_combat_system::MeleeCombatSystem;
 use monster_ai_system::MonsterAI;
+use particle_system::ParticleSpawnSystem;
 use player::*;
 use random_table::RandomTable;
 use visibility_system::VisibilitySystem;
@@ -80,7 +82,8 @@ impl State {
             ItemCollectionSystem{},
             ItemUseSystem{},
             ItemDropSystem{},
-            ItemRemoveSystem{}
+            ItemRemoveSystem{},
+            ParticleSpawnSystem{}
         );
 
         self.ecs.maintain();
@@ -240,6 +243,7 @@ impl GameState for State {
         }
 
         ctx.cls();
+        particle_system::cull_dead_particles(&mut self.ecs, ctx);
 
         match new_run_state {
             RunState::MainMenu { .. } | RunState::GameOver { .. } => {}
@@ -479,7 +483,8 @@ fn main() {
         Equipped,
         MeleePowerBonus,
         DefenseBonus,
-        WantsToRemoveItem
+        WantsToRemoveItem,
+        ParticleLifetime
     );
     gs.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
@@ -503,6 +508,7 @@ fn main() {
     }
 
     gs.ecs.insert(map);
+    gs.ecs.insert(particle_system::ParticleBuilder::new());
 
     rltk::main_loop(context, gs);
 }
