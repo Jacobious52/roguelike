@@ -20,6 +20,7 @@ mod particle_system;
 mod player;
 mod random_table;
 mod rect;
+mod rex_assets;
 mod saveload_system;
 mod spawner;
 mod visibility_system;
@@ -177,6 +178,14 @@ impl State {
         }
         for del in to_delete.iter() {
             self.ecs.delete_entity(*del).expect("Deletion failed");
+        }
+
+        // clean game log
+        {
+            let mut gamelog = self.ecs.write_resource::<game_log::GameLog>();
+            *gamelog = game_log::GameLog {
+                entries: vec!["Welcome to my game".to_string()],
+            };
         }
 
         // Build a new map and place the player
@@ -519,6 +528,7 @@ fn main() {
 
     gs.ecs.insert(map);
     gs.ecs.insert(particle_system::ParticleBuilder::new());
+    gs.ecs.insert(rex_assets::RexAssets::new());
 
     rltk::main_loop(context, gs);
 }
