@@ -2,6 +2,7 @@ use rltk::{Algorithm2D, BaseMap, Console, Point, RandomNumberGenerator, Rltk, RG
 use serde::{Deserialize, Serialize};
 use specs::{Entity, World};
 use std::cmp::{max, min};
+use std::collections::HashSet;
 
 use super::rect::Rect;
 
@@ -26,6 +27,7 @@ pub struct Map {
     pub visible_tiles: Vec<bool>,
     pub blocked: Vec<bool>,
     pub depth: i32,
+    pub bloodstains: HashSet<usize>,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
@@ -77,6 +79,7 @@ impl Map {
             blocked: vec![false; MAP_COUNT],
             tile_content: vec![Vec::new(); MAP_COUNT],
             depth: new_depth,
+            bloodstains: HashSet::new(),
         };
 
         const MAX_ROOMS: i32 = 30;
@@ -201,6 +204,7 @@ pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
         if map.revealed_tiles[idx] {
             let glyph;
             let mut fg;
+            let mut bg = RGB::from_f32(0., 0., 0.);
             match tile {
                 TileType::Floor => {
                     glyph = rltk::to_cp437('.');
@@ -215,10 +219,14 @@ pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
                     fg = RGB::from_f32(0., 1.0, 1.0);
                 }
             }
-            if !map.visible_tiles[idx] {
-                fg = fg.to_greyscale()
+            if map.bloodstains.contains(&idx) {
+                bg = RGB::from_f32(0.75, 0., 0.);
             }
-            ctx.set(x, y, fg, RGB::from_f32(0., 0., 0.), glyph);
+            if !map.visible_tiles[idx] {
+                fg = fg.to_greyscale();
+                bg = RGB::from_f32(0., 0., 0.); // Don't show stains out of visual range
+            }
+            ctx.set(x, y, fg, bg, glyph);
         }
         // Move the coordinates
         x += 1;
