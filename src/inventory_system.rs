@@ -1,4 +1,6 @@
-use super::{components::*, game_log::GameLog, map::Map, particle_system::ParticleBuilder};
+use super::{
+    components::*, game_log::GameLog, map::Map, particle_system::ParticleBuilder, RunState,
+};
 use specs::prelude::*;
 
 pub struct ItemCollectionSystem {}
@@ -46,6 +48,7 @@ pub struct ItemUseSystem {}
 impl<'a> System<'a> for ItemUseSystem {
     #[allow(clippy::type_complexity)]
     type SystemData = (
+        WriteExpect<'a, RunState>,
         ReadExpect<'a, Map>,
         ReadExpect<'a, Entity>,
         WriteExpect<'a, GameLog>,
@@ -66,10 +69,12 @@ impl<'a> System<'a> for ItemUseSystem {
         ReadStorage<'a, Position>,
         ReadStorage<'a, ProvidesFood>,
         WriteStorage<'a, HungerClock>,
+        ReadStorage<'a, MagicMapper>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
         let (
+            mut runstate,
             map,
             player_entity,
             mut game_log,
@@ -90,6 +95,7 @@ impl<'a> System<'a> for ItemUseSystem {
             positions,
             provides_food,
             mut hunger_clocks,
+            magic_mapper,
         ) = data;
 
         for (entity, use_item) in (&entities, &wants_use).join() {
@@ -314,6 +320,19 @@ impl<'a> System<'a> for ItemUseSystem {
                 confused
                     .insert(mob.0, Confusion { turns: mob.1 })
                     .expect("Unable to insert status");
+            }
+
+            // If its a magic mapper...
+            let is_mapper = magic_mapper.get(use_item.item);
+            match is_mapper {
+                None => {}
+                Some(_) => {
+                    used_item = true;
+                    game_log
+                        .entries
+                        .insert(0, "The map is revealed to you!".to_string());
+                    *runstate = RunState::MagicMapReveal { row: 0 }
+                }
             }
 
             if used_item {

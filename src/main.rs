@@ -1,6 +1,6 @@
 rltk::add_wasm_support!();
 
-use rltk::{Console, GameState, Point, Rltk};
+use rltk::{BaseMap, Console, GameState, Point, Rltk};
 use specs::prelude::*;
 use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
 #[macro_use]
@@ -56,6 +56,9 @@ pub enum RunState {
     NextLevel,
     ShowRemoveItem,
     GameOver,
+    MagicMapReveal {
+        row: i32,
+    },
 }
 
 pub struct State {
@@ -325,7 +328,26 @@ impl GameState for State {
             }
             RunState::PlayerTurn => {
                 self.run_systems();
-                new_run_state = RunState::MonsterTurn;
+                match *self.ecs.fetch::<RunState>() {
+                    RunState::MagicMapReveal { .. } => {
+                        new_run_state = RunState::MagicMapReveal { row: 0 }
+                    }
+                    _ => new_run_state = RunState::MonsterTurn,
+                }
+            }
+            RunState::MagicMapReveal { row } => {
+                let mut map = self.ecs.fetch_mut::<Map>();
+                for x in 0..MAP_WIDTH {
+                    let idx = map.xy_idx(x as i32, row);
+                    if map.get_available_exits(idx as i32).len() > 0 {
+                        map.revealed_tiles[idx] = true;
+                    }
+                }
+                if row as usize == MAP_HEIGHT - 1 {
+                    new_run_state = RunState::MonsterTurn;
+                } else {
+                    new_run_state = RunState::MagicMapReveal { row: row + 1 };
+                }
             }
             RunState::MonsterTurn => {
                 self.run_systems();
@@ -489,7 +511,8 @@ fn main() {
         WantsToRemoveItem,
         ParticleLifetime,
         HungerClock,
-        ProvidesFood
+        ProvidesFood,
+        MagicMapper
     );
     gs.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
