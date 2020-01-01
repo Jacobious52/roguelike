@@ -10,6 +10,7 @@ mod components;
 mod damage_system;
 mod game_log;
 mod gui;
+mod hunger_system;
 mod inventory_system;
 mod map;
 mod map_indexing_system;
@@ -25,6 +26,7 @@ mod visibility_system;
 
 use components::*;
 use damage_system::DamageSystem;
+use hunger_system::HungerSystem;
 use inventory_system::{ItemCollectionSystem, ItemDropSystem, ItemRemoveSystem, ItemUseSystem};
 use map::*;
 use map_indexing_system::MapIndexingSystem;
@@ -83,7 +85,8 @@ impl State {
             ItemUseSystem{},
             ItemDropSystem{},
             ItemRemoveSystem{},
-            ParticleSpawnSystem{}
+            ParticleSpawnSystem{},
+            HungerSystem{}
         );
 
         self.ecs.maintain();
@@ -484,7 +487,9 @@ fn main() {
         MeleePowerBonus,
         DefenseBonus,
         WantsToRemoveItem,
-        ParticleLifetime
+        ParticleLifetime,
+        HungerClock,
+        ProvidesFood
     );
     gs.ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
 
